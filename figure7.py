@@ -179,7 +179,7 @@ if True:
     plt.subplots_adjust(bottom = 0.14)
     
     plt.savefig('figures/figure7.jpg',format='JPEG', dpi =400)
-    plt.savefig('figures/figure7.pdf',format='PDF', dpi =400)
+    #plt.savefig('figures/figure7.pdf',format='PDF', dpi =400)
     plt.show()
 
 
