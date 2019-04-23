@@ -1,18 +1,16 @@
 #!/usr/bin/env python
-from obspy.core import read, UTCDateTime, Stream
-from scipy.signal import coherence
-import sys
-from scipy.optimize import fmin
+from obspy.core import read, UTCDateTime
+from obspy.signal.spectral_estimation import get_nhnm, get_nlnm
+from scipy import signal
+import matplotlib.pyplot as plt
 import numpy as np
+from obspy import read_inventory
+from obspy.signal.invsim import cosine_taper, paz_to_freq_resp
 from matplotlib.mlab import csd
 from math import pi
 import sys
-from obspy.signal.invsim import evalresp
-import matplotlib.pyplot as plt
-from obspy.signal.rotate import rotate2zne
-from obspy.signal.spectral_estimation import get_nhnm, get_nlnm
-from obspy.signal.konnoohmachismoothing import konno_ohmachi_smoothing
-
+from obspy.signal.spectral_estimation import get_nlnm, get_nhnm
+import scipy.io as sio
 import matplotlib as mpl
 #Set font parameters using matplotlib
 mpl.rc('font',family='serif')
@@ -20,213 +18,188 @@ mpl.rc('font',serif='Times')
 mpl.rc('text', usetex=True)
 mpl.rc('font',size=16)
 
+fig = plt.figure(1,figsize=(10,10))
 
-def rotme(st, ang):
-    azis = ang[0:3]
-    dips = ang[3:6]
-    data = rotate2zne(st[0].data, azis[0], dips[0], st[1].data, azis[1], dips[1], st[2].data, azis[2], dips[2])
-    st[0].data, st[1].data, st[2].data = data[0], data[1], data[2]
-    return st
 
-def rotData2(angle, stR, st, nol, nwin, debug = False):
-    if debug:
-        print('Here is number overlap: ' + str(nol))
-        print('Here is the number in the window: ' + str(nwin))
-    minper = 2.
-    maxper = 10. 
-    stTemp = st.copy()    
-    stTemp = rotme(stTemp, angle)
-    if debug:
-        print('Here we are')
-        print(stTemp)
-        print(stR)
-    newcoh = 0.
-    if debug:
-        print('Here is noverlap: ' + str(int(nol*nwin)))
-        print('Here is FFT: ' + str(nwin))
-        print('Here is nperseg: ' + str(nwin))
-    for idx in range(3):
-        (fre, cxy) =  coherence(stR[idx].data,stTemp[idx].data, \
-            fs = 1./st[idx].stats.delta, noverlap = int(nol*nwin), nfft = nwin, nperseg = nwin)
-        fre = fre[1:]
-        cxy = cxy[1:] 
-        mask = (fre <= 1./minper) & (fre >= 1./maxper)
-        newcoh += np.abs(np.mean(cxy[mask])-1.)
-    if debug:
-        print(newcoh)
 
-    return newcoh  
+debug = True
+NFFT= 2*2048
 
-def cp(tr1, tr2, lenfft, lenol, delta):
-    # Cross-power function
-	sr = 1./float(delta)
-	cpval,fre = csd(tr1.data, tr2.data, NFFT=lenfft, Fs=sr, noverlap=int(lenol*lenfft), scale_by_freq=True)
+def cp(tr1,tr2,lenfft,lenol,delta):
+	sr = 1./delta
+	cpval,fre = csd(tr1.data,tr2.data,NFFT=lenfft,Fs=sr,noverlap=lenol,scale_by_freq=True)
 	fre = fre[1:]
 	cpval = cpval[1:]
 	return cpval, fre
 
-def selfnoise(st, length, overlap):
-    (p11, f) = cp(st[0],st[0],length,overlap,st[0].stats.delta)
-    (p22, f) = cp(st[1],st[1],length,overlap,st[0].stats.delta)
-    (p33, f) = cp(st[2],st[2],length,overlap,st[0].stats.delta)
-
-    (p21, f) = cp(st[1],st[0],length,overlap,st[0].stats.delta)
-    (p13, f) = cp(st[0],st[2],length,overlap,st[0].stats.delta)
-    (p23, f) = cp(st[1],st[2],length,overlap,st[0].stats.delta)
 
 
-    n={}
-    n['1'] = (p11 - p21*p13/p23)
-    n['2'] = (p22 - np.conjugate(p23)*p21/np.conjugate(p13))
-    n['3'] = (p33 - p23*np.conjugate(p13)/p21)
 
-    p={}
-    p['1'] = p11
-    p['2'] = p22
-    p['3'] = p33
-    
-    return n, p, f
-
-
-debug = True
-st = Stream()
-for day in range(8, 15):
-    st += read('/tr1/telemetry_days/II_BFO/2019/2019_' + str(day).zfill(3) + '/*LH*')
-#st.trim(endtime = UTCDateTime('2019-009T18:59:59.0'))
-for tr in st:
-    if tr.stats.channel == 'LH1':
-        tr.stats.channel = 'LHN'
-    if tr.stats.channel == 'LH2':
-        tr.stats.channel = 'LHE'
-st.merge()
-st.sort(reverse=True)
-# Data is in ZNE format
-if debug:
-    print(st)
-
-comp = 'Z'
-length = 400000
-overlap = 0.5
-#Treat data1 as the reference and rotate 2 and three to match 1
-#angVec = [0., 0., 1.]
-
-
-# For ENZ data
-azis = [0., 0., 90.]
-dips = [-90., 0., 0.]
-angVec = azis + dips
-
+st = read('/TEST_ARCHIVE/XX_ENG1/2012/2012_116/*BH*')
+st.trim(starttime=UTCDateTime('2012-116T15:13:00.0'), endtime=UTCDateTime('2012-116T15:31:00.0'))
 
 if debug:
-    print('Calculating coherence')
-#ang1 = fmin(rotData2, angVec, args=(st.select( location='50'), st.select(location='55'), overlap, length))
-#ang2 = fmin(rotData2, angVec, args=(st.select(location='50'), st.select(location='60'), overlap, length))
-
-ang1 = [ -8.09887253e-01, 1.04545136e+00, 9.13021324e+01, -9.01370145e+01, -1.74007786e-01, 5.09743818e-02]
-ang2 = [ -4.60261201, 3.96006846, 94.10540385, -89.54792117, -0.56071495, -0.39495279]
-
-if debug:
-    #print('Here is cohereVal: ' + str(cohereVal1))
-    #print('Here is cohereVal: ' + str(cohereVal2))
-    print('Here is angle: ' + str(ang1))
-    print('Here is angle: ' + str(ang2))
-
-stgood = st.select(component=comp).copy()
-for tr in stgood:
-    if tr.stats.location == '00':
-        stgood.remove(tr)
-stgood55= st.select(location='55')
-stgood60 = st.select(location='60')
-stgood55= rotme(st.select(location='55'), ang1)
-stgood60 = rotme(st.select(location='60'), ang2)
-stgood = stgood55 + stgood60 + st.select(location='50')
-stgood = stgood.select(component=comp)
-print(stgood)
-#stgood.select(component=comp, location='50')[0].data = st.select(location='50')[0].data*ang1[0] + st.select(location='50')[1].data*ang1[1] + st.select(location='50')[2].data*ang1[2]
-#stgood.select(component=comp, location='55')[0].data = st.select(location='55')[0].data*ang2[0] + st.select(location='55')[1].data*ang2[1] + st.select(location='55')[2].data*ang2[2]
-
-if debug:
-    print(stgood)
-
-n, p, fre1 = selfnoise(stgood, length, overlap)
-
-fig = plt.figure(1,figsize=(18,18))
-plt.subplot(2,1,1)
-
-nm = (n['1'] + n['2'] + n['3'])/3.
-
-for idx in range(1,4):
-
-    tr = stgood[idx-1]
-    resp = evalresp(t_samp = tr.stats.delta, nfft = length, filename = '/APPS/metadata/RESPS/RESP.' + tr.id,  
-                date = tr.stats.starttime, station = tr.stats.station,
-                channel = tr.stats.channel, network = tr.stats.network, 
-                locid = tr.stats.location, units = 'ACC')
-    
-    n[str(idx)] /= np.abs(resp[1:])**2
-    plt.semilogx(1./fre1, 10.*np.log10(p[str(idx)]/np.abs(resp[1:])**2), label='PSD ' + (tr.id).replace('.', ' '), alpha=.7)
-    plt.semilogx(1./fre1, 10.*np.log10(n[str(idx)]), label='Self-Noise ' + (tr.id).replace('.',' '), alpha=.7)
-nm /= np.abs(resp[1:])**2
-nm = np.abs(nm)
-#N=  5
-#nm = np.convolve(nm, np.ones((N,))/N, mode='same')
-
-#nm2 = konno_ohmachi_smoothing(nm, fre1)
-plt.semilogx(1./fre1, 10.*np.log10(nm), label='Self-Noise Mean')
+	print(st)
+fig = plt.figure(1,figsize=(10,10))
 per_nlnm, pow_nlnm = get_nlnm()
 plt.semilogx(per_nlnm,pow_nlnm, linewidth=2, color='k')
 per_nhnm, pow_nhnm = get_nhnm()
-plt.semilogx(per_nhnm,pow_nhnm, linewidth=2, color='k', label='NLNM/NHNM')
+plt.semilogx(per_nhnm,pow_nhnm, linewidth=2, color='k', label='NLNM')
 
-#plt.semilogx(1./fre1, 10.*np.log10(nm2), label='Self-Noise Mean')
-plt.xlabel('Period (s)')
-plt.ylabel('Power (dB rel. 1 $(m/s^2)^2/Hz$)')
-#plt.title('Start Time: ' + str(stgood[0].stats.starttime.format_seed()))
-plt.legend(loc=9, ncol=4)
-plt.ylim((-225,-30))
-plt.xlim((2., 500000))
-#plt.savefig('SELFNOISE_TUC.jpg',format='JPEG', dpi= 400)
+
+inv = read_inventory('/APPS/metadata/RESPS/RESP.IU.TUC.00.BHZ')
+sts6paz = inv.get_response('IU.TUC.00.BHZ', UTCDateTime('2019-001T00:00:00.0'))
+sts6paz = sts6paz.get_paz()
+sts6paz.zeros= sts6paz.zeros[1:]
+
+print(sts6paz)
+
+inv = read_inventory('/APPS/metadata/RESPS/RESP.IU.MAJO.10.BHZ')
+sts2paz = inv.get_response('IU.MAJO.10.BHZ', UTCDateTime('2019-001T00:00:00.0'))
+sts2paz = sts2paz.get_paz()
+sts2paz.zeros = sts2paz.zeros[1:]
+
+print(sts2paz)
+
+
+for tr in st.select(location='00'):
+	f, p2 = signal.welch(tr.data, fs = tr.stats.sampling_rate, nperseg=NFFT, noverlap=1024)
+	f = f[1:]
+	p2 = p2[1:]
+	if 'p' in vars():
+		p = np.vstack((p, p2))
+   	else:
+   		p = p2
+	
+
+
+p = np.mean(p, axis=0)
+Tfnom, fnom = paz_to_freq_resp(sts6paz.poles, sts6paz.zeros, sts6paz.stage_gain*sts6paz.normalization_factor, 1./st[0].stats.sampling_rate, NFFT, freq=True)
+Tfnom = Tfnom[1:]*(2**26)/40.
+plt.semilogx(1./f,10.*np.log10(p/np.abs(Tfnom)**2), label='Q330HR Noise with STS-6 Response')
+Tfnom, fnom = paz_to_freq_resp(sts2paz.poles, sts2paz.zeros, sts2paz.stage_gain*sts2paz.normalization_factor, 1./st[0].stats.sampling_rate, NFFT, freq=True)
+Tfnom = Tfnom[1:]*(2**26)/40.
+plt.semilogx(1./f,10.*np.log10(p/np.abs(Tfnom)**2), label='Q330HR Noise with STS-2HG Response')
+
+
 #plt.show()
-plt.subplot(2,1,2)
 
-########################### Now we can do it with TUC
-st = Stream()
-for day in range(15, 30):
-    st += read('/tr1/telemetry_days/IU_TUC/2019/2019_' + str(day).zfill(3) + '/*LHZ*')
-#st.trim(endtime = UTCDateTime('2019-009T18:59:59.0'))
-#for tr in st:
-    #if tr.stats.channel == 'LH1':
-        #tr.stats.channel = 'LHN'
-    #if tr.stats.channel == 'LH2':
-        #tr.stats.channel = 'LHE'
+
+###################### Add STS-2HG self-noise
+
+
+instresp = np.abs(Tfnom)**2
+
+st = read('/TEST_ARCHIVE/XX_ENG7/2016/2016_180/00_BH0*')
+st += read('/TEST_ARCHIVE/XX_ENG4/2016/2016_180/10_BH0*')
+st += read('/TEST_ARCHIVE/XX_ENG5/2016/2016_180/00_BH0*')
+
+
 st.merge()
-st.sort(reverse=True)
+st.sort(['station'])
+print(st)
 
-n, p, fre1 = selfnoise(st, length, overlap)
+st[0].data = st[0].data.astype(np.float64)
+st[0].data *= 4.
 
-for idx in range(1,4):
+(p11, fre1) = cp(st[0],st[0],NFFT,1024,st[0].stats.delta)
+(p22, fre1) = cp(st[1],st[1],NFFT,1024,st[0].stats.delta)
+(p33, fre1) = cp(st[2],st[2],NFFT,1024,st[0].stats.delta)
 
-    tr = st[idx-1]
-    resp = evalresp(t_samp = tr.stats.delta, nfft = length, filename = '/APPS/metadata/RESPS/RESP.' + tr.id,  
-                date = tr.stats.starttime, station = tr.stats.station,
-                channel = tr.stats.channel, network = tr.stats.network, 
-                locid = tr.stats.location, units = 'ACC')
-    
-    n[str(idx)] /= np.abs(resp[1:])**2
-    plt.semilogx(1./fre1, 10.*np.log10(p[str(idx)]/np.abs(resp[1:])**2), label='PSD ' + (tr.id).replace('.', ' '), alpha=.7)
-    plt.semilogx(1./fre1, 10.*np.log10(n[str(idx)]), label='Self-Noise ' + (tr.id).replace('.',' '), alpha=.7)
-#plt.semilogx(1./fre1, 10.*np.log10(nm), label='Self-Noise Mean')
-per_nlnm, pow_nlnm = get_nlnm()
-plt.semilogx(per_nlnm,pow_nlnm, linewidth=2, color='k')
-per_nhnm, pow_nhnm = get_nhnm()
-plt.semilogx(per_nhnm,pow_nhnm, linewidth=2, color='k', label='NLNM/NHNM')
+(p21, fre1) = cp(st[1],st[0],NFFT,1024,st[0].stats.delta)
+(p13, fre1) = cp(st[0],st[2],NFFT,1024,st[0].stats.delta)
+(p23, fre1) = cp(st[1],st[2],NFFT,1024,st[0].stats.delta)
 
-#plt.semilogx(1./fre1, 10.*np.log10(nm2), label='Self-Noise Mean')
+
+
+n11 = (p11 - p21*p13/p23)/instresp
+n22 = (p22 - np.conjugate(p23)*p21/np.conjugate(p13))/instresp
+n33 = (p33 - p23*np.conjugate(p13)/p21)/instresp
+
+
+nn = (n11 + n22)/2.
+
+#plt.semilogx(fre1, 10.*np.log10(p11/(instresp)), label=st[0].id)
+#plt.semilogx(fre1, 10.*np.log10(p22/instresp), label=st[1].id)
+#plt.semilogx(fre1, 10.*np.log10(p33/(instresp)), label=st[2].id)
+plt.semilogx(1./fre1, 10.*np.log10(nn), label='STS-2HG Self-Noise')
+#plt.semilogx(fre1, 10.*np.log10(n11), label='STS-2HG Self-Noise')
+#plt.semilogx(fre1, 10.*np.log10(n22), label='STS-2HG Self-Noise')
+#plt.semilogx(fre1, 10.*np.log10(n33), label='STS-2HG Self-Noise')
+
+#plt.show()
+##################### Add STS-6 self-noise
+
+Tfnom, fnom = paz_to_freq_resp(sts6paz.poles, sts6paz.zeros, sts6paz.stage_gain*sts6paz.normalization_factor, 1./st[0].stats.sampling_rate, NFFT, freq=True)
+Tfnom = Tfnom[1:]*(2**26)/40.
+
+instresp = np.abs(Tfnom)**2
+
+#st = read('/tr1/telemetry_days/II_BFO/2019/2019_002/50_BHZ*')
+#st += read('/tr1/telemetry_days/II_BFO/2019/2019_002/55_BHZ*')
+#st += read('/tr1/telemetry_days/II_BFO/2019/2019_002/60_BHZ*')
+
+st = read('/tr1/telemetry_days/XX_CTAO/2019/2019_070/*BHZ*')
+st += read('/tr1/telemetry_days/XX_GSN1/2019/2019_070/00_BHZ*')
+
+# 00 is an STS-6 with a pre-amp
+# 10 is an STS-2.5
+# 00 GSN1 is an STS-6
+
+Tfnom, fnom = paz_to_freq_resp(sts6paz.poles, sts6paz.zeros, sts6paz.stage_gain*sts6paz.normalization_factor, 1./st[0].stats.sampling_rate, NFFT, freq=True)
+Tfnomsts6 = Tfnom[1:]*(2**26)/40.
+Tfnomsts6pa = Tfnomsts6*20.
+
+inv = read_inventory('/APPS/metadata/RESPS/RESP.IU.TUC.10.BHZ')
+sts25paz = inv.get_response('IU.TUC.10.BHZ', UTCDateTime('2019-001T00:00:00.0'))
+sts25paz = sts25paz.get_paz()
+sts25paz.zeros= sts25paz.zeros[1:]
+Tfnom, fnom = paz_to_freq_resp(sts25paz.poles, sts25paz.zeros, sts25paz.stage_gain*sts25paz.normalization_factor, 1./st[0].stats.sampling_rate, NFFT, freq=True)
+Tfnomsts25 = Tfnom[1:]*(2**26)/40.
+
+instresp1 = np.abs(Tfnomsts6pa)**2
+instresp2 = np.abs(Tfnomsts25)**2
+instresp3 = np.abs(Tfnomsts6)**2
+
+st.merge()
+st.sort()
+if debug:
+	print(st)
+
+
+(p11, fre1) = cp(st[0],st[0],NFFT,1024,st[0].stats.delta)
+(p22, fre1) = cp(st[1],st[1],NFFT,1024,st[0].stats.delta)
+(p33, fre1) = cp(st[2],st[2],NFFT,1024,st[0].stats.delta)
+
+(p21, fre1) = cp(st[1],st[0],NFFT,1024,st[0].stats.delta)
+(p13, fre1) = cp(st[0],st[2],NFFT,1024,st[0].stats.delta)
+(p23, fre1) = cp(st[1],st[2],NFFT,1024,st[0].stats.delta)
+
+
+n11 = (p11 - p21*p13/p23)/instresp1
+n22 = (p22 - np.conjugate(p23)*p21/np.conjugate(p13))/instresp2
+n33 = (p33 - p23*np.conjugate(p13)/p21)/instresp3
+
+#nn = (n11 + n22 + n33)/3. 
+
+per = [0.833333333, 0.555555556, 0.25, 0.2, 0.1, 0.05, 0.033333333]
+
+
+LNM=[-165.87, -168.83, -169.22, -168.35, -168.07, -167.00, -162.97]	
+
+plt.semilogx(per, LNM, label='Lajitas (1984)', color='C5', linewidth=2)
+
+plt.semilogx(1./fre1, 10.*np.log10(n11), label='STS-6 Self-Noise')
+#plt.semilogx(1./fre1, 10.*np.log10(n22), label='STS-2.5 Self-Noise')
+#plt.semilogx(1./fre1, 10.*np.log10(n33), label='STS-6H Self-Noise')
+#plt.semilogx(1./fre1, 10.*np.log10(p11/instresp1), label='STS-6 Noise')
+#plt.semilogx(1./fre1, 10.*np.log10(p22/instresp2), label='STS-2.5 Noise')
+#plt.semilogx(1./fre1, 10.*np.log10(p33/instresp3), label='STS-6H Self-Noise')
+plt.xlim((1./20.,1.))
+plt.ylim((-210, -140.))
 plt.xlabel('Period (s)')
 plt.ylabel('Power (dB rel. 1 $(m/s^2)^2/Hz$)')
-#plt.title('Start Time: ' + str(stgood[0].stats.starttime.format_seed()))
-plt.legend(loc=9, ncol=4)
-plt.ylim((-225,-30))
-plt.xlim((2., 500000))
+plt.legend()
+plt.savefig('figures/figure3.jpg', format='JPEG', dpi= 400)
+#plt.savefig('figures/figure1.pdf', format='PDF', dpi= 400)
 #plt.show()
-plt.savefig('figures/figure3.jpg',format='JPEG', dpi=400)
