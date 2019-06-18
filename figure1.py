@@ -20,6 +20,7 @@ inds = range(len(vals))
 fig = plt.figure(1, figsize=(12,12))
 plt.subplot(2,1,1)
 ind = np.arange(len(vals))/float(len(vals))
+print(ind)
 cols = cm.viridis(np.flip(ind))
 
 
@@ -36,7 +37,11 @@ plt.text(-2., 650., '(a)', fontsize=26)
 
 plt.subplot(2,2,3)
 
-plt.pie(ships, colors=cols, labels=networks, autopct="%1.1f%%")
+ships2 = [125., 110., 1. ,  130., 70., 195., 155., 5.]
+networks2 = [ 'GSN', 'International' , 'Other', 'FDSN' , 'Earthscope', 'Portable' , 'US Regional' , 'Engineering' ]
+cols2 = cm.viridis(np.flip(np.append(np.append(ind[:2], ind[-1]), ind[2:-1])))
+
+plt.pie(ships2, colors=cols2, labels=networks2, autopct="%1.1f%%")
 plt.title('Shipped Data (TB)')
 plt.text(-1.5, 1.4, '(b)', fontsize=26)
 plt.subplot(2,2,4)

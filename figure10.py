@@ -33,7 +33,7 @@ stime = UTCDateTime('2018-08-19T00:19:40')
 stime2 = stime
 # min and max frequency in milliHz
 mf= 0.5
-Mf= 1.2
+Mf= 1.3
 
 # In days
 length = 60
@@ -50,12 +50,12 @@ hours = int((1000.*1.1*195./0.76593)/(60.*60.))
 print('Using ' + str(hours) + ' hours of data')
 
 # List of reference modes to plot (only good for sub 1 mHz)
-modes = [[0.8143, '0S0'], [0.30945, '0S2'], [0.46850, '0S3'], [0.64682, '0S4'], [0.68020, '1S2'], 
-            [0.84002, '0S5'], [0.93997, '1S3'], [0.94435, '3S1'], [1.0382, '0S6'], [1.4135, '0S7'], [1.4135,'0S8'], 
-            [1.5783, '0S9'], [1.7265,'0S10'],[1.17278, '1S4'], [1.37,'1S5'], [1.243, '2S3'],[1.3797,'2S4'], [1.10620,'3S2'],
+modes = [[0.8140, '0S0'], [0.3092, '0S2'], [0.46884, '0S3'], [0.6469, '0S4'], [0.67934, '1S2'], 
+            [0.84022, '0S5'], [0.93908, '1S3'], [0.94434, '3S1'], [1.0379, '0S6'], [1.23133, '0S7'], [1.4135,'0S8'], 
+            [1.5783, '0S9'], [1.7265,'0S10'],[1.1720, '1S4'], [1.37,'1S5'], [1.2412, '2S3'],[1.3797,'2S4'], [1.1055,'3S2'],
             [1.4116, '4S1'],
-            [0.37970, '0T2'], [0.58630, '0T3'], [0.76593, '0T4'], [0.92845, '0T5'],[1.07913,'0T6'],[1.22115,'0T7'],
-            [1.35660, '0T8'],[1.2353, '1T1'], [1.31912,'1T2'], [1.43835, '1T3'],[1.48707, '0T9']]
+            [0.37889, '0T2'], [0.5856, '0T3'], [0.7649, '0T4'], [0.9272, '0T5'],[1.0775,'0T6'],[1.219,'0T7'],
+            [1.35660, '0T8'], [1.31912,'1T2'], [1.43835, '1T3'],[1.48707, '0T9']]
 resppath = '/APPS/metadata/RESPS/RESP.'
 
 
@@ -202,7 +202,8 @@ for idx, tr in enumerate(st.select(channel='LH*')):
         pidx = 3
         label='LHE'
     plt.subplot(3,1,pidx)
-    plt.plot(f,p, label=tr.stats.location + ' ' + label)
+    plt.plot(f,p, label=tr.stats.location + ' ' + label, alpha=0.7)
+    plt.fill_between(f, 0, p, alpha=0.7)
     if pcorr:
         plt.plot(f,pGood, label=tr.stats.location + ' ' + tr.stats.channel+ ' Pressure Corrected')
     plt.legend(loc='upper left', fontsize=12)
@@ -216,9 +217,19 @@ for idx, tr in enumerate(st.select(channel='LH*')):
                     + ' ' + str(tr.stats.starttime.julday).zfill(3) + ' ' + str(tr.stats.starttime.hour).zfill(2) + ':' + 
                     str(tr.stats.starttime.minute).zfill(2) + ':' + str(tr.stats.starttime.second) + ' Duration: ' +
                     str(hours) + ' Hours')
+    
+    if pidx == 1:
+        plt.text(.4, 0.007, '(a)', fontsize=28)
+    if pidx == 2:
+        plt.text(.4, 0.007, '(b)', fontsize=28)
+    if pidx == 3:
+        plt.text(.4, 0.007, '(c)', fontsize=28)
+    
+    
+    
     # Plot modes
     if idx < 3:
-        locp = max(p)*.95
+        locp = max(p)*1.1
         for nidx, mode in enumerate(modes):
             if (mode[0] <= max(f)) and (mode[0] >= min(f)):
                 label = mode[1]
@@ -227,48 +238,48 @@ for idx, tr in enumerate(st.select(channel='LH*')):
                     label += label[3]
                 if debug:
                     print(label)
-                plt.plot((mode[0], mode[0]), (-10., 500.), color='grey')
+                plt.plot((mode[0], mode[0]), (-10., 500.), color='grey', alpha=0.5)
                 
-                plt.text(mode[0] + .003, locp, '$' + label + '$' , fontsize=12)
+                plt.text(mode[0] + .003, locp, '$' + label + '$' , fontsize=14)
              
-                locp -= max(p)*0.1
+                locp -= max(p)*0.15
                 if locp < 0.75*max(p):
-                    locp = 0.95*max(p)
+                    locp = 1.1*max(p)
     #plt.ylim((-.0, max(p)*1.1))
-    plt.ylim((0., 0.006))
+    plt.ylim((0., 0.007))
 # Time to plot a synthetic
 
-st = read(diresyn + '/' + sta + "*.modes.sac")
-st.trim(starttime=stime, endtime=stime+hours*60.*60.)
+#st = read(diresyn + '/' + sta + "*.modes.sac")
+#st.trim(starttime=stime, endtime=stime+hours*60.*60.)
 
-st.detrend('linear')
-st.detrend('constant')
-for tr in st:
-    win = signal.get_window(('kaiser', 2.*np.pi), tr.stats.npts)
-    tr.data *= win
+#st.detrend('linear')
+#st.detrend('constant')
+#for tr in st:
+    #win = signal.get_window(('kaiser', 2.*np.pi), tr.stats.npts)
+    #tr.data *= win
 
-for tr in st:
-    tr.data = np.pad(tr.data, (int((length*60*60*24/20 -tr.stats.npts)/2.),int((length*60*60*24/20 -tr.stats.npts)/2.)), 'edge')  
-st.merge()
+#for tr in st:
+    #tr.data = np.pad(tr.data, (int((length*60*60*24/20 -tr.stats.npts)/2.),int((length*60*60*24/20 -tr.stats.npts)/2.)), 'edge')  
+#st.merge()
 
 
 
-if debug:
-    print(st)
+#if debug:
+    #print(st)
 
-for tr in st:
-    f, p =  periodogram(tr.data, fs=tr.stats.sampling_rate, nfft=NFFT, scaling='spectrum')
-    f= f[1:]*1000.
-    p = np.sqrt(p[1:])
-    if tr.stats.channel == 'LHZ':
-        pidx = 1
-    elif tr.stats.channel in ['LH1','LHN']:
-        pidx = 2
-    elif tr.stats.channel in ['LH2', 'LHE']:
-        pidx = 3
-    plt.subplot(3,1,pidx)
-    plt.plot(f,p, label=tr.stats.location + ' ' + (tr.stats.channel).replace('H','X'), alpha=0.7)
-    plt.legend(loc='upper left', fontsize=12)
+#for tr in st:
+    #f, p =  periodogram(tr.data, fs=tr.stats.sampling_rate, nfft=NFFT, scaling='spectrum')
+    #f= f[1:]*1000.
+    #p = np.sqrt(p[1:])
+    #if tr.stats.channel == 'LHZ':
+        #pidx = 1
+    #elif tr.stats.channel in ['LH1','LHN']:
+        #pidx = 2
+    #elif tr.stats.channel in ['LH2', 'LHE']:
+        #pidx = 3
+    #plt.subplot(3,1,pidx)
+    #plt.plot(f,p, label=tr.stats.location + ' ' + (tr.stats.channel).replace('H','X'), alpha=0.7)
+    #plt.legend(loc='upper left', fontsize=12)
 ##sys.exit()
 
 

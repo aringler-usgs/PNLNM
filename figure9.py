@@ -139,20 +139,21 @@ if True:
         for idx2, mode in enumerate(modes['S']):
             mode *= 1000.
             if idx2 == 0:
-                ax1.plot([mode, mode],[-296.,-170.],'C2',":", label=r'${}_{0}S_{l}$', alpha=.5)
+                ax1.plot([mode, mode],[-296.,-170.],'C2',":", label=r'${}_{0}S_{l}$', alpha=.9)
             else:
-                ax1.plot([mode, mode],[-296.,-170.],'C2',":", alpha=.5)
+                ax1.plot([mode, mode],[-296.,-170.],'C2',":", alpha=.9)
         for idx3, mode in enumerate(modes['T']):
             mode *= 1000.
             if idx3 == 0:
-                ax1.plot([mode, mode],[-296.,-170.],'C3', label=r'${}_{0}T_{l}$', alpha=.5) 
+                ax1.plot([mode, mode],[-296.,-170.],'C3', label=r'${}_{0}T_{l}$', alpha=.9) 
             else:
-                ax1.plot([mode, mode],[-296.,-170.],'C3', alpha=.5) 
+                ax1.plot([mode, mode],[-296.,-170.],'C3', alpha=.9) 
         
         ax1.plot(freq*1000., minsp, color='C1', label=str(int(percent)) + 'th Percentile')
         plt.xlim(((1000./perM),(1000./perm)))
         plt.plot((1000./pers), nlnm,'k',label='NLNM')
         plt.ylim((-191.,-171.))
+        
         plt.yticks([-185.,-180., -175.,],[-185, -180, -175])
         if (idx + 1) < len(chans):
             plt.tick_params(axis='x', which='both', bottom=True, top=False, labelbottom=False)
@@ -161,7 +162,11 @@ if True:
             
         if idx == 1:
             plt.ylabel('Power (dB  rel. 1 $(m/s^2)^2/Hz)$)')
-        
+            plt.text(.65, -175., '(b)', fontsize=28)
+        if idx == 0:
+            plt.text(.65, -175., '(a)', fontsize=28)
+        if idx == 2:
+            plt.text(.65, -175., '(c)', fontsize=28)
         plt.text(2.2,-177., chan)
     
     ax1 = plt.gca()

@@ -104,6 +104,7 @@ def selfnoise(st, length, overlap):
 debug = True
 st = Stream()
 for day in range(8, 15):
+#for day in range(8,9):
     st += read('/tr1/telemetry_days/II_BFO/2019/2019_' + str(day).zfill(3) + '/*LH*')
 #st.trim(endtime = UTCDateTime('2019-009T18:59:59.0'))
 for tr in st:
@@ -119,6 +120,7 @@ if debug:
 
 comp = 'Z'
 length = 400000
+#length = 2**10
 overlap = 0.5
 #Treat data1 as the reference and rotate 2 and three to match 1
 #angVec = [0., 0., 1.]
@@ -189,7 +191,7 @@ nm = np.abs(nm)
 #nm = np.convolve(nm, np.ones((N,))/N, mode='same')
 
 #nm2 = konno_ohmachi_smoothing(nm, fre1)
-plt.semilogx(1./fre1, 10.*np.log10(nm), label='Self-Noise Mean')
+#plt.semilogx(1./fre1, 10.*np.log10(nm), label='Self-Noise Mean')
 per_nlnm, pow_nlnm = get_nlnm()
 plt.semilogx(per_nlnm,pow_nlnm, linewidth=2, color='k')
 per_nhnm, pow_nhnm = get_nhnm()

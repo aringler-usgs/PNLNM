@@ -164,7 +164,13 @@ if True:
             plt.ylabel('Power (dB  rel. 1 $(m/s^2)^2/Hz)$)')
         
         plt.text(1./2500.,-195., chan)
-    
+        if idx == 1:
+            plt.ylabel('Power (dB  rel. 1 $(m/s^2)^2/Hz)$)')
+            plt.text(.00013, -175., '(b)', fontsize=28)
+        if idx == 0:
+            plt.text(.00013, -175., '(a)', fontsize=28)
+        if idx == 2:
+            plt.text(.00013, -175., '(c)', fontsize=28)
     ax1 = plt.gca()
     hand, lab = ax1.get_legend_handles_labels()
     #del hand[2]

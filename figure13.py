@@ -16,7 +16,7 @@ pernhnm, nhnm = get_nhnm()
 
 N= 5
 path = '/home/aringler/inst_test/sts6AGU/horizontalfigure/'
-fig = plt.figure(1,figsize=(9,9))
+fig = plt.figure(1,figsize=(14,9))
 plt.subplots_adjust(hspace=0.001)
 models = {}
 for idx, sen in enumerate(['I','S']):
@@ -68,12 +68,14 @@ for idx, sen in enumerate(['I','S']):
 ax1 = fig.add_subplot(3,1,1)
 plt.semilogx(per, models['ILHH'],color='C0', linewidth=2)
 plt.semilogx(per, models['ILHZ'],color='C1', linewidth=2)
+plt.text(1, -100, '(a)', fontsize=28)
 ax1 = fig.add_subplot(3,1,2)
 plt.semilogx(per, models['SLHH'],color='C0', linewidth=2)
 plt.semilogx(per, models['SLHZ'],color='C1', linewidth=2)
-
+plt.text(1, -100, '(b)', fontsize=28)
 
 ax1 = fig.add_subplot(3,1,3)
+plt.text(1, 6, '(c)', fontsize=28)
 ax1.semilogx(per, models['ILHH']-models['SLHH'],color='C0',label='LHH')
 ax1.semilogx(per, models['ILHZ']-models['SLHZ'],color='C1', label='LHZ')
 ax1.semilogx(pernlnm,nlnm,color='k',linewidth=2., label='NLNM')

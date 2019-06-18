@@ -115,7 +115,7 @@ ax.set_position([box.x0, box.y0 + box.height * 0.1,
 
 
 #plt.tight_layout()
-plt.ylim((-250., -90.))
+plt.ylim((-210., -90.))
 plt.xlim((1., 10.**4))
 ax.legend(ncol=3, loc='lower center', bbox_to_anchor=(0.5, -0.25))
 #plt.subplots_adjust(top = 0.97)
