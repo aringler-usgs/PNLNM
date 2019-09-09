@@ -128,8 +128,25 @@ if True:
     plt.subplots_adjust(hspace=0.001)
     for idx, chan in enumerate(chans):
         ax1 = fig.add_subplot(len(chans),1,idx+1)
-        for pidx in range(len(specsN[chan][1,:])):
-            ax1.plot(1000.*freq, specsN[chan][:,pidx], color = 'C0', alpha=.01)
+        #for pidx in range(len(specsN[chan][1,:])):
+        #    ax1.plot(1000.*freq, specsN[chan][:,pidx], color = 'C0', alpha=.01)
+        fs, ps = [], []
+        for idxspec in range(len(specsN[chan][1,:])):
+            for idxf, specval in enumerate(specsN[chan][:,idxspec]):
+                if (1000.*freq[idxf] >= (1000./perM)) and (1000.*freq[idxf] <= (1000./perm)):
+                    if (specval > -191) and (specval <= -171):
+                        fs.append(1000.*freq[idxf])
+                        ps.append(specval)
+
+        H, x, y = np.histogram2d(fs, ps, bins=(len(set(fs)),(-171-(-191))*10.), range=[[min(fs), max(fs)],[-191, -171]], normed=True)
+        H = H.T
+        X, Y = np.meshgrid(x,y)
+        att = ax1.pcolormesh(X,Y,H, vmin=0., vmax= 5., zorder=-1)
+
+
+
+
+
 
         #if chan == 'LHZ':
         percent=40.
@@ -145,9 +162,9 @@ if True:
         for idx3, mode in enumerate(modes['T']):
             mode *= 1000.
             if idx3 == 0:
-                ax1.plot([mode, mode],[-296.,-170.],'C5', label=r'${}_{0}T_{l}$', alpha=.9) 
+                ax1.plot([mode, mode],[-296.,-170.],'C3', label=r'${}_{0}T_{l}$', alpha=.9) 
             else:
-                ax1.plot([mode, mode],[-296.,-170.],'C5', alpha=.9) 
+                ax1.plot([mode, mode],[-296.,-170.],'C3', alpha=.9) 
         
         ax1.plot(freq*1000., minsp, color='C1', label=str(int(percent)) + 'th Percentile')
         plt.xlim(((1000./perM),(1000./perm)))
@@ -167,7 +184,7 @@ if True:
             plt.text(.65, -175., '(a)', fontsize=28)
         if idx == 2:
             plt.text(.65, -175., '(c)', fontsize=28)
-        plt.text(2.2,-177., chan)
+        plt.text(2.2,-177., chan, color='C1')
     
     ax1 = plt.gca()
     hand, lab = ax1.get_legend_handles_labels()
@@ -182,10 +199,16 @@ if True:
     for legobj in leg.legendHandles:
         legobj.set_linewidth(2.0)
     plt.subplots_adjust(bottom = 0.14)
-    
-    plt.savefig('figure9AGAIN.jpg',format='JPEG', dpi =400)
+    fig.subplots_adjust(right = 0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15,0.05, 0.7])
+    cb = fig.colorbar(att, cax = cbar_ax)
+    cb.set_label('Probability (\%)')
+    color_limits = (0, 5.)
+    att.set_clim((0.,5.))
+    cb.set_clim((0.,5.))
+    plt.savefig('Figure9Temp.jpg', format='JPEG', dpi=400)
+    #plt.savefig('figures/figure9.jpg',format='JPEG', dpi =400)
     #plt.savefig('figures/figure7.pdf',format='PDF', dpi =400)
     #plt.show()
-
 
 

@@ -94,8 +94,20 @@ for ele in matgs13['lnm']:
 
 freq = np.asarray(freq)
 power = np.asarray(power)
+idx = np.argsort(freq)
+power = power[idx]
+freq = freq[idx]
+power = power[(freq < 30.)]
+freq = freq[(freq < 30.)]
 
+
+print(freq)
 print(power)
+
+for pair in zip(freq,power):
+    print(pair)
+
+
 ax.semilogx(1./freq, power, label='GS-13 Self-Noise', color='C4', linewidth=2)
 
 # Add the GSN noise model
@@ -126,11 +138,12 @@ ax.semilogx(per, LNM, label='Lajitas (1984)', color='C5', linewidth=2)
 
 #plt.tight_layout()
 plt.ylim((-195., -80.))
-plt.xlim((1.5*10**-3, 10.))
+plt.xlim((1./200., 10.))
+plt.grid(True)
 ax.legend(ncol=3, loc='lower center', bbox_to_anchor=(0.5, -0.25))
 #plt.subplots_adjust(top = 0.97)
 plt.xlabel('Period (s)')
 plt.ylabel('Power (dB rel. 1 $(m/s^2)^2/Hz$)')
 #plt.show()
 #plt.savefig('figures/figure2.pdf',format='PDF', dpi=400)
-plt.savefig('figures/figure2.jpg',format='JPEG', dpi=400)
+plt.savefig('figures2update.jpg',format='JPEG', dpi=400)

@@ -14,10 +14,13 @@ from obspy.signal.rotate import rotate2zne
 from obspy.signal.spectral_estimation import get_nhnm, get_nlnm
 from obspy.signal.konnoohmachismoothing import konno_ohmachi_smoothing
 
+from obspy.clients.fdsn import Client
+client = Client("IRIS")
+
 import matplotlib as mpl
 #Set font parameters using matplotlib
 mpl.rc('font',family='serif')
-mpl.rc('font',serif='Times') 
+mpl.rc('font',serif='Times')
 mpl.rc('text', usetex=True)
 mpl.rc('font',size=16)
 
@@ -28,10 +31,10 @@ def octavesmooth(x, octaveFraction = 1.0/3.0 ):
     leftFactor =  1.0 / rightFactor
     for n in range(len(x)):
         print('On ' + str(n) + ' of ' + str(len(x)))
-        left = long(n * leftFactor)
-        right = long(n * rightFactor)
+        left = int(n * leftFactor)
+        right = int(n * rightFactor)
         y.append( sum( x[left : right + 1] ) / (right - left + 1) )
-		
+
     return y
 
 def rotme(st, ang):
@@ -46,8 +49,8 @@ def rotData2(angle, stR, st, nol, nwin, debug = False):
         print('Here is number overlap: ' + str(nol))
         print('Here is the number in the window: ' + str(nwin))
     minper = 2.
-    maxper = 10. 
-    stTemp = st.copy()    
+    maxper = 10.
+    stTemp = st.copy()
     stTemp = rotme(stTemp, angle)
     if debug:
         print('Here we are')
@@ -62,13 +65,13 @@ def rotData2(angle, stR, st, nol, nwin, debug = False):
         (fre, cxy) =  coherence(stR[idx].data,stTemp[idx].data, \
             fs = 1./st[idx].stats.delta, noverlap = int(nol*nwin), nfft = nwin, nperseg = nwin)
         fre = fre[1:]
-        cxy = cxy[1:] 
+        cxy = cxy[1:]
         mask = (fre <= 1./minper) & (fre >= 1./maxper)
         newcoh += np.abs(np.mean(cxy[mask])-1.)
     if debug:
         print(newcoh)
 
-    return newcoh  
+    return newcoh
 
 def cp(tr1, tr2, lenfft, lenol, delta):
     # Cross-power function
@@ -97,15 +100,22 @@ def selfnoise(st, length, overlap):
     p['1'] = p11
     p['2'] = p22
     p['3'] = p33
-    
+
     return n, p, f
 
 
 debug = True
+
+
+
 st = Stream()
 for day in range(8, 15):
-#for day in range(8,9):
-    st += read('/tr1/telemetry_days/II_BFO/2019/2019_' + str(day).zfill(3) + '/*LH*')
+
+    ctime = UTCDateTime('2019-' + str(day).zfill(3) + 'T00:00:00')
+    estime = ctime + 24*60*60.
+    #st += read('/tr1/telemetry_days/II_BFO/2019/2019_' + str(day).zfill(3) + '/*LH*')
+    st += client.get_waveforms("II", "XBFO", "*", "LH*", ctime, estime,
+                                   attach_response=False)
 #st.trim(endtime = UTCDateTime('2019-009T18:59:59.0'))
 for tr in st:
     if tr.stats.channel == 'LH1':
@@ -173,18 +183,18 @@ nm = (n['1'] + n['2'] + n['3'])/3.
 for idx in range(1,4):
 
     tr = stgood[idx-1]
-    resp = evalresp(t_samp = tr.stats.delta, nfft = length, filename = '/APPS/metadata/RESPS/RESP.' + tr.id,  
+    resp = evalresp(t_samp = tr.stats.delta, nfft = length, filename = '/APPS/metadata/RESPS/RESP.' + tr.id,
                 date = tr.stats.starttime, station = tr.stats.station,
-                channel = tr.stats.channel, network = tr.stats.network, 
+                channel = tr.stats.channel, network = tr.stats.network,
                 locid = tr.stats.location, units = 'ACC')
-    
+
     n[str(idx)] /= np.abs(resp[1:])**2
     p[str(idx)] = 10.*np.log10(p[str(idx)]/np.abs(resp[1:])**2)
     p[str(idx)] = octavesmooth(p[str(idx)], 1./6.)
     n[str(idx)] = 10.*np.log10(n[str(idx)])
     n[str(idx)] = octavesmooth(n[str(idx)], 1./6.)
     plt.semilogx(1./fre1, p[str(idx)], label='PSD ' + (tr.id).replace('.', ' '), alpha=.7)
-    plt.semilogx(1./fre1, n[str(idx)], label='Self-Noise ' + (tr.id).replace('.',' '), alpha=.7)
+    plt.semilogx(1./fre1, n[str(idx)],linestyle=':', linewidth=3, label='Self-Noise ' + (tr.id).replace('.',' '), alpha=.7)
 nm /= np.abs(resp[1:])**2
 nm = np.abs(nm)
 #N=  5
@@ -211,8 +221,9 @@ plt.subplot(2,1,2)
 
 ########################### Now we can do it with TUC
 st = Stream()
-for day in range(15, 30):
-    st += read('/tr1/telemetry_days/IU_TUC/2019/2019_' + str(day).zfill(3) + '/*LHZ*')
+#for day in range(15, 30):
+for day in range(200,215):
+    st += read('/msd/IU_TUC/2019/' + str(day).zfill(3) + '/*LHZ*')
 #st.trim(endtime = UTCDateTime('2019-009T18:59:59.0'))
 #for tr in st:
     #if tr.stats.channel == 'LH1':
@@ -227,18 +238,25 @@ n, p, fre1 = selfnoise(st, length, overlap)
 for idx in range(1,4):
 
     tr = st[idx-1]
-    resp = evalresp(t_samp = tr.stats.delta, nfft = length, filename = '/APPS/metadata/RESPS/RESP.' + tr.id,  
+    resp = evalresp(t_samp = tr.stats.delta, nfft = length, filename = '/APPS/metadata/RESPS/RESP.' + tr.id,
                 date = tr.stats.starttime, station = tr.stats.station,
-                channel = tr.stats.channel, network = tr.stats.network, 
+                channel = tr.stats.channel, network = tr.stats.network,
                 locid = tr.stats.location, units = 'ACC')
-    
+
     n[str(idx)] /= np.abs(resp[1:])**2
     p[str(idx)] = 10.*np.log10(p[str(idx)]/np.abs(resp[1:])**2)
     p[str(idx)] = octavesmooth(p[str(idx)], 1./6.)
     n[str(idx)] = 10.*np.log10(n[str(idx)])
     n[str(idx)] = octavesmooth(n[str(idx)], 1./6.)
-    plt.semilogx(1./fre1, p[str(idx)], label='PSD ' + (tr.id).replace('.', ' '), alpha=.7)
-    plt.semilogx(1./fre1, n[str(idx)], label='Self-Noise ' + (tr.id).replace('.',' '), alpha=.7)
+    if tr.stats.location == '00':
+        sn = 'STS-6A'
+    elif tr.stats.location == '10':
+        sn = 'STS-2.5'
+    else:
+        sn = 'STS-1'
+
+    plt.semilogx(1./fre1, p[str(idx)], label='PSD ' + sn, alpha=.7)
+    plt.semilogx(1./fre1, n[str(idx)], linestyle = ':', linewidth=3, label='Self-Noise ' + sn, alpha=.7)
 #plt.semilogx(1./fre1, 10.*np.log10(nm), label='Self-Noise Mean')
 per_nlnm, pow_nlnm = get_nlnm()
 plt.semilogx(per_nlnm,pow_nlnm, linewidth=2, color='k')
@@ -254,5 +272,5 @@ plt.ylim((-225,-30))
 plt.xlim((2., 500000))
 plt.text(0.5, -30., '(b)', fontsize= 28)
 
-plt.savefig('figures/figure6.jpg',format='JPEG', dpi=400)
+plt.savefig('figure6NEW.jpg',format='JPEG', dpi=400)
 plt.show()

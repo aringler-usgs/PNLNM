@@ -17,19 +17,19 @@ sta = 'ANMO'
 net = 'IU'
 loc = '00'
 nfft = 24*60*60
-perM= 1000*(1./1.5)
-perm = 1000.*(1./7.) 
-stime = UTCDateTime('2018-192T00:00:00.0')
+perM= 3000.
+perm = 10.
+stime = UTCDateTime('2018-195T00:00:00.0')
 #stime += 10.*24*60.*60.
-#etime = stime+ 10.*60.*60.*24.
-etime = UTCDateTime('2019-001T00:00:00.0')
+#etime = stime + 10.*60.*60.*24.
+etime = UTCDateTime('2019-060T00:00:00.0')
 specfinal = {}
 chans = ['LH1', 'LH2', 'LHZ']
 st = Stream()
 ctime = stime
 while ctime < etime:
     for chan in chans:
-        st += read('/msd/' + net + '_' + sta +'/' + str(ctime.year) + '/' + str(ctime.julday).zfill(3) + '/00_' + chan +'*')
+        st += read('/msd/' + net + '_' + sta +'/2018/' + str(ctime.julday).zfill(3) + '/00_' + chan +'*')
     ctime += 24.*60.*60.
     st.merge(fill_value=0)
     st.trim(starttime=stime, endtime=etime)
@@ -44,10 +44,10 @@ specs = {}
 for tr in st:
     if debug:
         print(tr)
-    #olp = int(0.25 * nfft)   
+    #olp = int(0.25 * nfft)
     olp=20.*60.*60.
     specgram, freq, time = mlab.specgram(tr.data, Fs = tr.stats.sampling_rate, NFFT = nfft,
-                                        pad_to = nfft * 2, noverlap = olp, scale_by_freq = True, mode='psd')	
+                                        pad_to = nfft * 2, noverlap = olp, scale_by_freq = True, mode='psd')
     #still  need to remove response
     specgram = specgram[1:,:]
     freq = freq[1:]
@@ -58,13 +58,13 @@ for tr in st:
     # Return the response
     resp = evalresp(t_samp = tr.stats.delta, nfft = 2 * nfft, filename = resppath + 'RESP.' + net + '.' + \
                                 sta + '.' + loc + '.' + chan,  date = tr.stats.starttime, station = sta,
-                                channel = chan, network = net, locid = loc, units = 'ACC') 
+                                channel = chan, network = net, locid = loc, units = 'ACC')
 
     # Remove the 0 frequency
     resp = resp[1:]
     # Correct for the response
     specgram = (specgram.T/(np.abs(resp*np.conjugate(resp)))).T
-    
+
     specgram = 10. * np.log10(specgram)
     #for idx in range(len(specgram[1,:])):
     #    specgram[:,idx] = smooth(specgram[:,idx],10)
@@ -90,7 +90,7 @@ def removebad(specgram, time, debug=True):
                 print('Bad index:' + str(idx))
             #Time to remove
             badidx.append(idx)
-    # Now that we have the badidx we should remove them 
+    # Now that we have the badidx we should remove them
     newspecgram = np.delete(specgram,badidx,1)
     newtime = np.delete(time, badidx)
     return newspecgram, newtime
@@ -102,22 +102,23 @@ timesN={}
 for chan in chans:
     specsN[chan],timesN[chan] = removebad(specs[chan],time)
 
+##################################################################################################################################
 
 
-modetypes = ['S','T','R']
 
-modes = {}
-for mode in modetypes:
-    with open('data/modes_' + mode + '.eigen','r') as f:
-        next(f)
-        modes[mode] = []
-        for line in f:
-            line = ' '.join(line.split())
-            if int(line.split(' ')[0]) == 0:
-                line = line.split(' ')[4]
-                modes[mode].append(1./float(line))
+#pers, nlnm = get_nlnm()
+#plt.plot((1./pers), nlnm,'k',label='NLNM')
+#plt.ylim((-201.,-171.))
+#plt.xlim(((1./perM),(1./perm)))
+#plt.xscale('log')
 
-print(modes['T'])
+#print('Saving the plot')
+
+#plt.savefig('Test.jpg',format='JPEG', dpi=200)
+
+
+
+
 
 
 print('Here are the number of spectra:' + str(len(specsN[chan][1,:])))
@@ -128,53 +129,57 @@ if True:
     plt.subplots_adjust(hspace=0.001)
     for idx, chan in enumerate(chans):
         ax1 = fig.add_subplot(len(chans),1,idx+1)
-        for pidx in range(len(specsN[chan][1,:])):
-            ax1.plot(1000.*freq, specsN[chan][:,pidx], color = 'C0', alpha=.01)
+        #for pidx in range(len(specsN[chan][1,:])):
+        #    ax1.semilogx(freq, specsN[chan][:,pidx], color = 'C0', alpha=.01)
+
+        fs, ps = [], []
+        for idxspec in range(len(specsN[chan][1,:])):
+            for idxf, specval in enumerate(specsN[chan][:,idxspec]):
+                if (freq[idxf] >= (1./perM)) and (freq[idxf] <= (1./perm)):
+                    fs.append(freq[idxf])
+                    ps.append(specval)
+
+
+
+
+        H, x, y = np.histogram2d(fs, ps, bins=(len(set(fs)),(-171-(-201))*10.), range=[[min(fs), max(fs)],[-210, -171]], normed=True)
+        H = H.T
+        X, Y = np.meshgrid(x,y)
+        att = ax1.pcolormesh(1./X,Y,H, vmin=0., vmax= 5., zorder=-1)
 
         #if chan == 'LHZ':
-        percent=40.
+        percent=10.
         minsp = np.percentile(specsN[chan][:,:],percent, axis=1)
-        #minsp = np.average(specsN[chan][:,:], axis=1)
-        
-        for idx2, mode in enumerate(modes['S']):
-            mode *= 1000.
-            if idx2 == 0:
-                ax1.plot([mode, mode],[-296.,-170.],'C2',":", label=r'${}_{0}S_{l}$', alpha=.9)
-            else:
-                ax1.plot([mode, mode],[-296.,-170.],'C2',":", alpha=.9)
-        for idx3, mode in enumerate(modes['T']):
-            mode *= 1000.
-            if idx3 == 0:
-                ax1.plot([mode, mode],[-296.,-170.],'C5', label=r'${}_{0}T_{l}$', alpha=.9) 
-            else:
-                ax1.plot([mode, mode],[-296.,-170.],'C5', alpha=.9) 
-        
-        ax1.plot(freq*1000., minsp, color='C1', label=str(int(percent)) + 'th Percentile')
-        plt.xlim(((1000./perM),(1000./perm)))
-        plt.plot((1000./pers), nlnm,'k',label='NLNM')
-        plt.ylim((-191.,-171.))
-        
-        plt.yticks([-185.,-180., -175.,],[-185, -180, -175])
+
+        N=10
+        minsp = np.convolve(minsp, np.ones((N,))/N, mode='same')
+        ax1.semilogx(1./freq, minsp, color='C1', label=str(int(percent)) + 'th Percentile')
+        plt.xlim(((perm),(perM)))
+        plt.plot((pers), nlnm,'k',label='NLNM')
+        plt.ylim((-201.,-171.))
+        plt.yticks([-195., -190.,-185.,-180., -175.,],[-195, -190, -185, -180, -175])
         if (idx + 1) < len(chans):
             plt.tick_params(axis='x', which='both', bottom=True, top=False, labelbottom=False)
         if (idx+1) == len(chans):
-            plt.xlabel('Frequency (mHz)')
-            
+            plt.xlabel('Period (s)')
+
         if idx == 1:
             plt.ylabel('Power (dB  rel. 1 $(m/s^2)^2/Hz)$)')
-            plt.text(.65, -175., '(b)', fontsize=28)
+
+        plt.text(1./2500.,-195., chan, color='C1')
+        if idx == 1:
+            plt.ylabel('Power (dB  rel. 1 $(m/s^2)^2/Hz)$)')
+            plt.text(0.9, -175., '(b)', fontsize=28)
         if idx == 0:
-            plt.text(.65, -175., '(a)', fontsize=28)
+            plt.text(0.9, -175., '(a)', fontsize=28)
         if idx == 2:
-            plt.text(.65, -175., '(c)', fontsize=28)
-        plt.text(2.2,-177., chan)
-    
+            plt.text(0.9, -175., '(c)', fontsize=28)
     ax1 = plt.gca()
     hand, lab = ax1.get_legend_handles_labels()
-    del hand[1]
-    del lab[1]
+
+
     handles = hand
-    
+
     labels = lab
     print(handles)
     print(labels)
@@ -182,10 +187,17 @@ if True:
     for legobj in leg.legendHandles:
         legobj.set_linewidth(2.0)
     plt.subplots_adjust(bottom = 0.14)
-    
-    plt.savefig('figure9AGAIN.jpg',format='JPEG', dpi =400)
-    #plt.savefig('figures/figure7.pdf',format='PDF', dpi =400)
+    fig.subplots_adjust(right = 0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15,0.05, 0.7])
+    cb = fig.colorbar(att, cax = cbar_ax)
+    cb.set_label('Probability (\%)')
+    color_limits = (0, 5.)
+    att.set_clim((0.,5.))
+    cb.set_clim((0.,5.))
+
+
+
+    plt.savefig('figure8TEST.jpg',format='JPEG', dpi =400)
+    #plt.savefig('figures/figure8.jpg',format='JPEG', dpi =400)
+    #plt.savefig('figures/figure6.pdf',format='pdf', dpi =400)
     #plt.show()
-
-
-

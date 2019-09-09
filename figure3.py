@@ -63,13 +63,13 @@ print(sts2paz)
 
 
 for tr in st.select(location='00'):
-	f, p2 = signal.welch(tr.data, fs = tr.stats.sampling_rate, nperseg=NFFT, noverlap=1024)
-	f = f[1:]
-	p2 = p2[1:]
-	if 'p' in vars():
-		p = np.vstack((p, p2))
-   	else:
-   		p = p2
+    f, p2 = signal.welch(tr.data, fs = tr.stats.sampling_rate, nperseg=NFFT, noverlap=1024)
+    f = f[1:]
+    p2 = p2[1:]
+    if 'p' in vars():
+        p = np.vstack((p, p2))
+    else:
+        p = p2
 	
 
 
@@ -195,8 +195,9 @@ plt.semilogx(1./fre1, 10.*np.log10(n11), label='STS-6 Self-Noise')
 #plt.semilogx(1./fre1, 10.*np.log10(p11/instresp1), label='STS-6 Noise')
 #plt.semilogx(1./fre1, 10.*np.log10(p22/instresp2), label='STS-2.5 Noise')
 #plt.semilogx(1./fre1, 10.*np.log10(p33/instresp3), label='STS-6H Self-Noise')
-plt.xlim((1./20.,1.))
+plt.xlim((1./15.,1.))
 plt.ylim((-210, -140.))
+plt.grid(True)
 plt.xlabel('Period (s)')
 plt.ylabel('Power (dB rel. 1 $(m/s^2)^2/Hz$)')
 plt.legend()

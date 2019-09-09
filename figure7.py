@@ -35,18 +35,18 @@ print(pamp1)
 
 fig = plt.figure(1, figsize=(14,14))
 plt.subplot(3,1,1)
-plt.plot(1./f, pamp1, label='P-wave 00 Amplitude')
-plt.plot(1./f, pamp2, label='P-wave 10 Amplitude')
+plt.plot(1./f, pamp1, label='P-wave STS-6A Amplitude')
+plt.plot(1./f, pamp2, label='P-wave T-120 Amplitude')
 plt.text(0.15, 1.00, '(a)', fontsize=28)
-plt.semilogx(1./f, samp1, label='S-wave 00 Amplitude')
-plt.semilogx(1./f, samp2, label='S-wave 10 Amplitude')
+plt.semilogx(1./f, samp1, label='S-wave STS-6A Amplitude')
+plt.semilogx(1./f, samp2, label='S-wave T-120 Amplitude')
 plt.legend()
 plt.xlim((0.25, 20))
 plt.ylabel('Amplitude (Normalized)')
 plt.xlabel('Period (s)')
 plt.subplot(3,1,2)
-plt.semilogx(1./f, 20.*np.log10(pamp1/pamp2), label='P-wave 00 to 10 Ratio (dB)')
-plt.semilogx(1./f, 20.*np.log10(samp1/samp2), label='S-wave 00 to 10 Ratio (dB)')
+plt.semilogx(1./f, 20.*np.log10(pamp1/pamp2), label='P-wave STS-6A to T-120 Ratio (dB)')
+plt.semilogx(1./f, 20.*np.log10(samp1/samp2), label='S-wave STS-6A to T-120 Ratio (dB)')
 plt.ylabel('Power (dB)')
 plt.text(0.15, 0.2, '(b)', fontsize=28)
 plt.legend()
@@ -89,7 +89,13 @@ for tr in st:
     resp = resp[1:]
 
     power = 10.*np.log10(power/np.absolute(resp*np.conjugate(resp)))   
-    plt.semilogx(1./freq,power, label=tr.id)
+    if tr.stats.location == '00':
+        lab = 'STS-6A'
+    else:
+        lab = 'T-120'
+    
+    
+    plt.semilogx(1./freq,power, label=lab)
 plt.semilogx(per, NLNM,'k', label="NHNM/NLNM")
 plt.semilogx(per, NHNM,'k')
 plt.ylabel('Power (dB rel. 1 $m/(s^2)^2/Hz$)')  
@@ -99,5 +105,5 @@ plt.legend(loc=4)
 plt.xlim((.25, 20.))
 plt.ylim((-161., -109.))
 
-plt.savefig('figures/figure7.jpg', format='JPEG', dpi= 400)
+plt.savefig('figure7NEW.jpg', format='JPEG', dpi= 400)
 #plt.show()
